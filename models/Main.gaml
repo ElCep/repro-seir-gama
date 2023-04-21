@@ -60,9 +60,11 @@ global torus: true {
 	
 }
 
-grid worldGrid width: 300 height: 300 neighbors: 8;
+grid worldGrid width: 30 height: 30 neighbors: 8 {
+	bool steppedOn <- false;
+}
 
-species turtle control: fsm {
+species turtle control: fsm parallel: true {
 	
 	// Parameters
 	int te;
@@ -90,35 +92,31 @@ species turtle control: fsm {
 		infectionCells <<+ myCell.neighbors;
 		
 		int nbNeighInfectedTurtles <- 0;
-		ask infectionCells where !empty((turtle where (each.state = "infected")) overlapping self) {
-			nbNeighInfectedTurtles <- nbNeighInfectedTurtles + length ((turtle where (each.state = "infected")) overlapping self);
+		ask infectionCells where each.steppedOn {
+			nbNeighInfectedTurtles <- nbNeighInfectedTurtles + ((turtle overlapping self) count (each.state = "infected"));
 		}
 		
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
 			write "" + self + " got infected";
-		}
-	}
-	
-	state exposed {
-		enter {
 			infectionTimer <- 0;
 			isSusceptible <- false;
 			myColour <- #orange;
 		}
-		transition to: infected when: infectionTimer > te;
+	}
+	
+	state exposed {
+		transition to: infected when: infectionTimer > te {
+			myColour <- #green;
+		}
 	}
 	
 	state infected {
-		enter {
-			myColour <- #green;
+		transition to: recovered when: infectionTimer > te + ti {
+			myColour <- #red;
 		}
-		transition to: recovered when: infectionTimer > te + ti;
 	}
 	
 	state recovered {
-		enter {
-			myColour <- #red;
-		}
 		transition to: susceptible when: infectionTimer > te + ti + tr;
 		
 	}
@@ -129,7 +127,9 @@ species turtle control: fsm {
 	
 	// Movement mechanic
 	reflex move {
+		myCell.steppedOn <- false;
 		myCell <- one_of (myCell.neighbors);
+		myCell.steppedOn <- true;
 		location <- myCell.location;
 	}
 	
@@ -141,7 +141,7 @@ species turtle control: fsm {
 }
 
 experiment Run type: gui {
-	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.1 min: 0.0 max: 1.0;
+	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.01 min: 0.0 max: 1.0;
 	
 	output {
 		display mainDisp type: java2D {
