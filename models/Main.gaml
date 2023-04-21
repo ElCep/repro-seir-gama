@@ -51,6 +51,7 @@ global torus: true {
 		propSusceptible <- turtle count (each.state = "susceptible") / length(turtle);
 		propExposed <- turtle count (each.state = "exposed") / length(turtle);
 		propRecovered <- turtle count (each.state = "recovered") / length(turtle);
+		write "infected init" + turtle count (each.state = "infected");
 		
 	}
 	
