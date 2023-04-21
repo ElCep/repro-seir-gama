@@ -14,7 +14,7 @@ global torus: true {
 	int endStep <- 730;
 	
 	// Simulation parameters
-	int nbTurtle <- 200;
+	int nbTurtle <- 2000;
 	float propInfectedInit;
 	
 	// Random exponentielle
@@ -62,8 +62,8 @@ global torus: true {
 	
 }
 
-grid worldGrid width: 30 height: 30 neighbors: 8 {
-	bool steppedOn <- false;
+grid worldGrid width: 300 height: 300 neighbors: 8 {
+	bool steppedOnByInfected <- false;
 }
 
 species turtle control: fsm parallel: true {
@@ -89,7 +89,7 @@ species turtle control: fsm parallel: true {
 		infectionCells <<+ myCell.neighbors;
 		
 		int nbNeighInfectedTurtles <- 0;
-		ask infectionCells where each.steppedOn {
+		ask infectionCells where each.steppedOnByInfected {
 			nbNeighInfectedTurtles <- nbNeighInfectedTurtles + ((turtle overlapping self) count (each.state = "infected"));
 		}
 		
@@ -127,9 +127,9 @@ species turtle control: fsm parallel: true {
 	
 	// Movement mechanic
 	reflex move {
-		myCell.steppedOn <- false;
+		myCell.steppedOnByInfected <- false;
 		myCell <- one_of (myCell.neighbors);
-		myCell.steppedOn <- true;
+		myCell.steppedOnByInfected <- state = "infected" ? true : false;
 		location <- myCell.location;
 	}
 	
