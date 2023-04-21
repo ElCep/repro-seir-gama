@@ -18,8 +18,8 @@ global torus: true {
 	float propInfectedInit;
 	
 	// Random exponentielle
-	int globalTi <- 7;
 	int globalTe <- 3;
+	int globalTi <- 7;
 	int globalTr <- 365;
 	
 	float infectionRate <- 0.5; // ie Beta in SEIR models
@@ -65,8 +65,8 @@ grid worldGrid width: 300 height: 300 neighbors: 8;
 species turtle control: fsm {
 	
 	// Parameters
-	int ti;
 	int te;
+	int ti;
 	int tr;
 	
 	// Variables
@@ -86,14 +86,17 @@ species turtle control: fsm {
 			myColour <- #blue;
 		}
 		
-		list<turtle> neighbouringInfectedTurtles;
+		list<worldGrid> infectionCells <- [myCell];
+		infectionCells <<+ myCell.neighbors;
+		
 		int nbNeighInfectedTurtles <- 0;
-		ask myCell.neighbors {
-			neighbouringInfectedTurtles <<+ turtle overlapping self where (each.state = "infected");
-			nbNeighInfectedTurtles <- nbNeighInfectedTurtles + length (turtle overlapping self where (each.state = "infected"));
+		ask infectionCells where !empty((turtle where (each.state = "infected")) overlapping self) {
+			nbNeighInfectedTurtles <- nbNeighInfectedTurtles + length ((turtle where (each.state = "infected")) overlapping self);
 		}
 		
-		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles));
+		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
+			write "" + self + " got infected";
+		}
 	}
 	
 	state exposed {
@@ -138,7 +141,7 @@ species turtle control: fsm {
 }
 
 experiment Run type: gui {
-	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.01 min: 0.0 max: 1.0;
+	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.1 min: 0.0 max: 1.0;
 	
 	output {
 		display mainDisp type: java2D {
