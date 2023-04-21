@@ -14,10 +14,10 @@ global torus: true {
 	int endStep <- 730;
 	
 	// Simulation parameters
-	int nbTurtle <- 2000;
+	int nbTurtle <- 20000;
 	float propInfectedInit;
 	
-	// Random exponentielle
+	// Infection transition times
 	int globalTe <- 3;
 	int globalTi <- 7;
 	int globalTr <- 365;
@@ -38,12 +38,12 @@ global torus: true {
 			tr <- int( - globalTr * ln (rnd (1.0)));
 		}
 		
-		// Initialise initialy exposed agents
+		// Initialise initialy infected agents
 		ask int(floor(propInfectedInit * nbTurtle)) among turtle {
-			self.state <- "exposed";
-			self.myColour <- #orange;
+			self.state <- "infected";
+			self.myColour <- #green;
 			self.isSusceptible <- false;
-			self.infectionTimer <- 0;
+			self.infectionTimer <- self.te;
 		}
 		
 		// Initialise outputs
@@ -85,16 +85,18 @@ species turtle control: fsm parallel: true {
 	
 	// FSM states
 	state susceptible initial: true {
+		
 		list<worldGrid> infectionCells <- [myCell];
 		infectionCells <<+ myCell.neighbors;
+		infectionCells <- infectionCells where each.steppedOnByInfected;
 		
 		int nbNeighInfectedTurtles <- 0;
-		ask infectionCells where each.steppedOnByInfected {
+		ask infectionCells {
 			nbNeighInfectedTurtles <- nbNeighInfectedTurtles + ((turtle overlapping self) count (each.state = "infected"));
 		}
 		
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
-			write "" + self + " got infected";
+//			write "" + self + " got infected";
 			infectionTimer <- 0;
 			isSusceptible <- false;
 			myColour <- #orange;
@@ -166,18 +168,11 @@ experiment batchRun autorun: true type: batch repeat: nbReplications until: endS
 	
 	reflex saveResults {
 		ask simulations {
-			save [time, propSusceptible, propExposed, propInfected, propRecovered] to: "SSCrisis.csv" format: "csv" rewrite: (int(self) = 0) ? true : false header: true;
+//			save [time, propSusceptible, propExposed, propInfected, propRecovered] to: "SSCrisis.csv" format: "csv" rewrite: (int(self) = 0) ? true : false header: true;
 		}
 	}
 }
 
-// interface : proportions en graphe
-// Paramètre: proportion de population infectée
-
-// batch 30 réplications
-// Sortie 30 graphes
-// 1 csv 700 lignes (temps)
-// colonnes : tps S E I R
 
 
 
