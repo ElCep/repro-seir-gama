@@ -33,7 +33,7 @@ global torus: true {
 	init {
 		create turtle number: nbTurtle {
 			// Attribution of own t private parameter
-			te <- int( - globalTe * ln (rnd (1.0))); // int(f) eq. to flooring the float f
+			te <- int( - globalTe * ln (rnd (1.0))); // int(foat) eq. to flooring the float
 			ti <- int( - globalTi * ln (rnd (1.0)));
 			tr <- int( - globalTr * ln (rnd (1.0)));
 		}
