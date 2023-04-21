@@ -14,7 +14,7 @@ global torus: true {
 	int endStep <- 730;
 	
 	// Simulation parameters
-	int nbTurtle <- 2000;
+	int nbTurtle <- 20000;
 	float propInfectedInit;
 	
 	// Random exponentielle
@@ -40,8 +40,8 @@ global torus: true {
 		
 		// Initialise initialy exposed agents
 		ask int(floor(propInfectedInit * nbTurtle)) among turtle {
-			self.state <- "exposed";
-			self.myColour <- #orange;
+			self.state <- "infected";
+			self.myColour <- #red;
 			self.isSusceptible <- false;
 			self.infectionTimer <- 0;
 		}
@@ -51,6 +51,7 @@ global torus: true {
 		propSusceptible <- turtle count (each.state = "susceptible") / length(turtle);
 		propExposed <- turtle count (each.state = "exposed") / length(turtle);
 		propRecovered <- turtle count (each.state = "recovered") / length(turtle);
+		write "infected init" + turtle count (each.state = "infected");
 		
 	}
 	
@@ -94,7 +95,7 @@ species turtle control: fsm parallel: true {
 		}
 		
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
-			write "" + self + " got infected";
+			//write "" + self + " got infected";
 			infectionTimer <- 0;
 			isSusceptible <- false;
 			myColour <- #orange;
