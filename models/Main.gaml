@@ -51,7 +51,8 @@ global torus: true {
 		propSusceptible <- turtle count (each.state = "susceptible") / length(turtle);
 		propExposed <- turtle count (each.state = "exposed") / length(turtle);
 		propRecovered <- turtle count (each.state = "recovered") / length(turtle);
-		write "infected init" + turtle count (each.state = "infected");
+		write "infected init " + turtle count (each.state = "infected");
+		write "infected init " + turtle count (each.state = "infected") / length(turtle) ;
 		
 	}
 	
@@ -76,7 +77,7 @@ species turtle control: fsm parallel: true {
 	
 	// Variables
 	bool isSusceptible;
-	int infectionTimer;
+	int infectionTimer <- 0;
 	rgb myColour <- #blue;
 	worldGrid myCell <- one_of(worldGrid);
 	
@@ -84,6 +85,9 @@ species turtle control: fsm parallel: true {
 		location <- myCell.location;
 	}
 	
+//	aspect base {
+//		draw circle(1) color: #yellow;
+//	}
 	// FSM states
 	state susceptible initial: true {
 		
@@ -98,40 +102,43 @@ species turtle control: fsm parallel: true {
 		
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
 //			write "" + self + " got infected";
-			infectionTimer <- 0;
 			isSusceptible <- false;
+			infectionTimer <- 0;
 			myColour <- #orange;
 		}
 	}
 	
 	state exposed {
 		transition to: infected when: infectionTimer > te {
-			myColour <- #green;
+			infectionTimer <- 0;
+			myColour <- #orange;
 		}
 	}
 	
 	state infected {
-		transition to: recovered when: infectionTimer > te + ti {
+		transition to: recovered when: infectionTimer > ti {
+			infectionTimer <- 0;
 			myColour <- #red;
 		}
 	}
 	
 	state recovered {
-		transition to: susceptible when: infectionTimer > te + ti + tr {
+		transition to: susceptible when: infectionTimer > tr {
+			infectionTimer <- 0;
 			isSusceptible <- true;
 			myColour <- #blue;
 		}
 		
 	}
 	
-	reflex updateInfectionTimer when: !isSusceptible {
+	reflex updateInfectionTimer {
 		infectionTimer <- infectionTimer + 1;
 	}
 	
 	// Movement mechanic
 	reflex move {
 		myCell.steppedOnByInfected <- false;
-		myCell <- one_of (myCell.neighbors);
+		myCell <- one_of (worldGrid);
 		myCell.steppedOnByInfected <- state = "infected" ? true : false;
 		location <- myCell.location;
 	}
@@ -144,7 +151,7 @@ species turtle control: fsm parallel: true {
 }
 
 experiment Run type: gui {
-	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.01 min: 0.0 max: 1.0;
+	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.001 min: 0.0 max: 1.0;
 	
 	output {
 		display mainDisp type: java2D {
