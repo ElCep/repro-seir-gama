@@ -42,6 +42,8 @@ global torus: true {
 		ask int(floor(propInfectedInit * nbTurtle)) among turtle {
 			self.state <- "exposed";
 			self.myColour <- #orange;
+			self.isSusceptible <- false;
+			self.infectionTimer <- 0;
 		}
 		
 		// Initialise outputs
@@ -83,11 +85,6 @@ species turtle control: fsm parallel: true {
 	
 	// FSM states
 	state susceptible initial: true {
-		enter {
-			isSusceptible <- true;
-			myColour <- #blue;
-		}
-		
 		list<worldGrid> infectionCells <- [myCell];
 		infectionCells <<+ myCell.neighbors;
 		
@@ -117,7 +114,10 @@ species turtle control: fsm parallel: true {
 	}
 	
 	state recovered {
-		transition to: susceptible when: infectionTimer > te + ti + tr;
+		transition to: susceptible when: infectionTimer > te + ti + tr {
+			isSusceptible <- true;
+			myColour <- #blue;
+		}
 		
 	}
 	
