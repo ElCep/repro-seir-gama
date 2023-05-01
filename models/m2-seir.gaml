@@ -14,9 +14,9 @@ global torus: true {
 	int endStep <- 730;
 	
 	// Simulation parameters
-	int nbTurtle <- 2000;
-	float propInfectedInit <- 0.1;
-	int gridSize <- 100;
+	int nbTurtle <- 20000;
+	float propInfectedInit <- 0.01;
+	int gridSize <- 300 ;
 	
 	// Infection transition times
 	int globalTe <- 3;
@@ -67,6 +67,9 @@ global torus: true {
 
 grid worldGrid width: gridSize height: gridSize neighbors: 8 {
 	bool steppedOnByInfected <- false;
+	reflex clean {
+		steppedOnByInfected <- false;
+	}
 }
 
 species turtle control: fsm parallel: true {
@@ -94,17 +97,12 @@ species turtle control: fsm parallel: true {
 		
 		list<worldGrid> infectionCells <- [myCell];
 		infectionCells <<+ myCell.neighbors;
-		infectionCells <- infectionCells where each.steppedOnByInfected; // TODO c'est un chouette moyen de réduire le calcule mais ça marche pas
-		write "nombre de cellules infected "+length(infectionCells);
+		//infectionCells <- infectionCells where each.steppedOnByInfected; // TODO c'est un chouette moyen de réduire le calcule mais ça marche pas
+		//infectionCells <- infectionCells collect(each with:(steppedOnByInfected = true));
 		
-		int nbNeighInfectedTurtles <- 0;
-		ask infectionCells {
-			nbNeighInfectedTurtles <-  ((turtle overlapping self) count (each.state = "infected"));
-			
-		}
-		
+		list nbNeig <- infectionCells accumulate (turtle overlapping each); 
+		int nbNeighInfectedTurtles <- length(nbNeig);
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
-//			write "" + self + " got infected";
 			isSusceptible <- false;
 			infectionTimer <- 0;
 			myColour <- #orange;
@@ -143,21 +141,22 @@ species turtle control: fsm parallel: true {
 	
 	// Movement mechanic
 	reflex move {
-		myCell.steppedOnByInfected <- false;
+		//myCell.steppedOnByInfected <- false;
 		myCell <- one_of (worldGrid);
 		myCell.steppedOnByInfected <- state = "infected" ? true : false;
+		//write  "le nombre de cellule infecté  le nombre de tutle infecté ? " + (worldGrid count(each.steppedOnByInfected = true)) = (turtle count(each.state = "infected" ));
 		location <- myCell.location;
 	}
 	
 	// Visual aspect
 	aspect default {
-		draw square(0.3) color: myColour border: #black;
+		draw square(0.5) color: myColour border: #black;
 	}
 	
 }
 
 experiment Run type: gui {
-	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.1 min: 0.0 max: 1.0;
+	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.01 min: 0.0 max: 1.0;
 	
 	output {
 		display mainDisp type: java2D {
