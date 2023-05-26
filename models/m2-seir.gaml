@@ -67,12 +67,14 @@ global torus: true {
 
 grid worldGrid width: gridSize height: gridSize neighbors: 8 {
 	bool steppedOnByInfected <- false;
+	list<turtle> myTurtles;
+	
 	reflex clean {
 		steppedOnByInfected <- false;
 	}
 }
 
-species turtle control: fsm parallel: true {
+species turtle control: fsm /*parallel: true*/ {
 	
 	// Parameters
 	int te;
@@ -87,20 +89,20 @@ species turtle control: fsm parallel: true {
 	
 	init {
 		location <- myCell.location;
+		add self to: myCell.myTurtles ;
 	}
 	
 //	aspect base {
 //		draw circle(1) color: #yellow;
 //	}
 	// FSM states
-	state susceptible initial: true {
-		
+	state susceptible initial: true {		
 		list<worldGrid> infectionCells <- [myCell];
 		infectionCells <<+ myCell.neighbors;
 		//infectionCells <- infectionCells where each.steppedOnByInfected; // TODO c'est un chouette moyen de réduire le calcule mais ça marche pas
 		//infectionCells <- infectionCells collect(each with:(steppedOnByInfected = true));
 		
-		list nbNeig <- infectionCells accumulate (turtle overlapping each); 
+		list nbNeig <- infectionCells accumulate (each.myTurtles); 
 		int nbNeighInfectedTurtles <- length(nbNeig);
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
 			isSusceptible <- false;
@@ -142,7 +144,9 @@ species turtle control: fsm parallel: true {
 	// Movement mechanic
 	reflex move {
 		//myCell.steppedOnByInfected <- false;
+		remove self from: myCell.myTurtles ;
 		myCell <- one_of (worldGrid);
+		add self to: myCell.myTurtles ;
 		myCell.steppedOnByInfected <- state = "infected" ? true : false;
 		//write  "le nombre de cellule infecté  le nombre de tutle infecté ? " + (worldGrid count(each.steppedOnByInfected = true)) = (turtle count(each.state = "infected" ));
 		location <- myCell.location;
