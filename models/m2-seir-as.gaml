@@ -12,20 +12,11 @@ global torus: true {
 	// Global parameters
 	int nbReplications <- 30;
 	int endStep <- 730;
-	int mySeed <- rnd(200000);
-	
-	// create liste of values
-	list simTime <- [];
-	list S <- [];
-	list E <- [];
-	list I <- [];
-	list R <- [];
-	
 	
 	// Simulation parameters
 	int nbTurtle <- 20000;
 	float propInfectedInit <- 0.01;
-	int gridSize <- 300 ;
+	int gridSize <- 300;
 	
 	// Infection transition times
 	int globalTe <- 3;
@@ -39,22 +30,19 @@ global torus: true {
 	float propSusceptible update: turtle count (each.state = "susceptible") / nbTurtle;
 	float propExposed update: turtle count (each.state = "exposed") / nbTurtle;
 	float propRecovered update: turtle count (each.state = "recovered") / nbTurtle;
-
 	
 	init {
 		create turtle number: nbTurtle {
 			// Attribution of own t private parameter
-			te <- int(exp_rnd(globalTe)); // int(foat) eq. to flooring the float
-			ti <- int(exp_rnd(globalTi));
-			tr <- int(exp_rnd(globalTr));
+			te <- int(ceil(lognormal_rnd(0, globalTe))); // Need to ensure 0 is the correct μ
+			ti <- int(ceil(lognormal_rnd(0, globalTi))); // En vrai ça fait une variabilité monstre sur les sorties, ça. On est sûrs que c'est la fonction qu'on veut?
+			tr <- int(ceil((lognormal_rnd(0, globalTr)))); // D'ailleurs, ça donne souvent des trucs entre 0 et 1. Comme il y a minimum un step pour qu'il register le passage au nouveau state, je l'ai ceilingué.
 		}
 		
 		// Initialise initialy infected agents
 		ask int(floor(propInfectedInit * nbTurtle)) among turtle {
 			self.state <- "infected";
 			self.myColour <- #green;
-			self.isSusceptible <- false;
-			self.infectionTimer <- self.te;
 		}
 		
 		// Initialise outputs
@@ -64,34 +52,25 @@ global torus: true {
 		propRecovered <- turtle count (each.state = "recovered") / length(turtle);
 		write "infected init " + turtle count (each.state = "infected");
 		write "infected init " + turtle count (each.state = "infected") / length(turtle) ;
-				
+		
 	}
 	
 	bool endSimu <- false; // Stops batches
-	reflex createFinalList {
-		add time to: simTime ;
-		add propSusceptible to: S;
-		add propExposed to: E;
-		add propInfected to: I;
-		add propRecovered to: R;
+	reflex endSim when: time >= endStep {
+		endSimu <- true;
+		do pause;
 	}
 	
-	reflex saveResults {
-		save [time, propSusceptible, propExposed, propInfected, propRecovered] to: "../results/SSCrisis"+ mySeed +".csv" 
-			format: "csv" rewrite: (cycle = 0) ? true: false header: true;
-	}
 }
 
 grid worldGrid width: gridSize height: gridSize neighbors: 8 {
 	bool steppedOnByInfected <- false;
-	list<turtle> myTurtles;
-	
-	reflex clean {
-		steppedOnByInfected <- false;
-	}
+//	reflex clean { Ca ne marchait pas de le mettre dans move?
+//		steppedOnByInfected <- false;
+//	}
 }
 
-species turtle control: fsm /*parallel: true*/ {
+species turtle control: fsm parallel: true {
 	
 	// Parameters
 	int te;
@@ -99,30 +78,30 @@ species turtle control: fsm /*parallel: true*/ {
 	int tr;
 	
 	// Variables
-	bool isSusceptible;
 	int infectionTimer <- 0;
 	rgb myColour <- #blue;
-	worldGrid myCell <- one_of(worldGrid);
+	worldGrid myCell;
+	list<worldGrid> infectionCells <- [myCell];
 	
 	init {
+		myCell <- one_of(worldGrid);
 		location <- myCell.location;
-		add self to: myCell.myTurtles ;
 	}
 	
-//	aspect base {
-//		draw circle(1) color: #yellow;
-//	}
 	// FSM states
-	state susceptible initial: true {		
-		list<worldGrid> infectionCells <- [myCell];
-		infectionCells <<+ myCell.neighbors;
-		//infectionCells <- infectionCells where each.steppedOnByInfected; // TODO c'est un chouette moyen de réduire le calcule mais ça marche pas
-		//infectionCells <- infectionCells collect(each with:(steppedOnByInfected = true));
+	state susceptible initial: true {
 		
-		list nbNeig <- infectionCells accumulate (each.myTurtles); 
-		int nbNeighInfectedTurtles <- length(nbNeig);
+		enter {
+			infectionCells <- [myCell];
+		}
+		
+		infectionCells <<+ myCell.neighbors;
+		infectionCells <- infectionCells where each.steppedOnByInfected; // TODO c'est un chouette moyen de réduire le calcule mais ça marche pas. Certain de ça? Je pense que c'est corrigé, là, non?
+//		infectionCells <- infectionCells collect(each with:(steppedOnByInfected = true));
+		
+//		list nbNeig <- infectionCells accumulate (turtle overlapping each); 
+		int nbNeighInfectedTurtles <- length(infectionCells);
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
-			isSusceptible <- false;
 			infectionTimer <- 0;
 			myColour <- #orange;
 		}
@@ -138,7 +117,7 @@ species turtle control: fsm /*parallel: true*/ {
 	state infected {
 		ask myCell {
 			steppedOnByInfected <- true;
-			}
+		}
 		transition to: recovered when: infectionTimer > ti {
 			infectionTimer <- 0;
 			myColour <- #red;
@@ -148,25 +127,23 @@ species turtle control: fsm /*parallel: true*/ {
 	state recovered {
 		transition to: susceptible when: infectionTimer > tr {
 			infectionTimer <- 0;
-			isSusceptible <- true;
 			myColour <- #blue;
 		}
 		
 	}
 	
-	reflex updateInfectionTimer {
+	reflex updateInfectionTimer when: state != "susceptible"{
+//		write state + self + "+1";
 		infectionTimer <- infectionTimer + 1;
 	}
 	
 	// Movement mechanic
 	reflex move {
-		//myCell.steppedOnByInfected <- false;
-		remove self from: myCell.myTurtles ;
+		myCell.steppedOnByInfected <- false;
 		myCell <- one_of (worldGrid);
-		add self to: myCell.myTurtles ;
+		location <- myCell.location;
 		myCell.steppedOnByInfected <- state = "infected" ? true : false;
 		//write  "le nombre de cellule infecté  le nombre de tutle infecté ? " + (worldGrid count(each.steppedOnByInfected = true)) = (turtle count(each.state = "infected" ));
-		location <- myCell.location;
 	}
 	
 	// Visual aspect
@@ -196,21 +173,15 @@ experiment Run type: gui {
 	}
 }
 
-experiment batchRun autorun: true type: batch repeat: 30 until: time > 730 parallel: true {
+experiment batchRun autorun: true type: batch repeat: nbReplications until: endSimu {
 	
-	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.1 ;
-
+	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.1 min: 0.0 max: 1.0;
 	
-	/*  reflex end_of_runs {
-    int cpt <- 0;
-        ask simulations {
-            // save [time, propSusceptible, propExposed, propInfected, propRecovered] to: "../results/SSCrisis"+ cpt +".csv" 
-			//	format: "csv" rewrite: (int(self) = 0) ? true : false header: true;
-			save [simTime, S, E, I, R] to: "../results/SSCrisis"+ mySeed + "_" + cpt +".csv" 
-				format: "csv" header: true;
-            cpt <- cpt + 1;
-        }
-    }*/
+	reflex saveResults {
+		ask simulations {
+//			save [time, propSusceptible, propExposed, propInfected, propRecovered] to: "SSCrisis.csv" format: "csv" rewrite: (int(self) = 0) ? true : false header: true;
+		}
+	}
 }
 
 
