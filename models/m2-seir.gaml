@@ -39,6 +39,8 @@ global torus: true {
 	float propSusceptible update: turtle count (each.state = "susceptible") / nbTurtle;
 	float propExposed update: turtle count (each.state = "exposed") / nbTurtle;
 	float propRecovered update: turtle count (each.state = "recovered") / nbTurtle;
+	
+	bool isBatch <- false;
 
 	
 	init {
@@ -76,7 +78,7 @@ global torus: true {
 		add propRecovered to: R;
 	}
 	
-	reflex saveResults {
+	reflex saveResults when: isBatch {
 		save [time, propSusceptible, propExposed, propInfected, propRecovered] to: "../results/SSCrisis"+ mySeed +".csv" 
 			format: "csv" rewrite: (cycle = 0) ? true: false header: true;
 	}
@@ -114,13 +116,15 @@ species turtle control: fsm /*parallel: true*/ {
 //	}
 	// FSM states
 	state susceptible initial: true {		
-		list<worldGrid> infectionCells <- [myCell];
-		infectionCells <<+ myCell.neighbors;
+//		list<worldGrid> infectionCells <- [myCell];
+//		infectionCells <<+ myCell.neighbors;
+		list<worldGrid> infectionCells <- myCell.neighbors + myCell;
 		//infectionCells <- infectionCells where each.steppedOnByInfected; // TODO c'est un chouette moyen de réduire le calcule mais ça marche pas
 		//infectionCells <- infectionCells collect(each with:(steppedOnByInfected = true));
 		
-		list nbNeig <- infectionCells accumulate (each.myTurtles); 
-		int nbNeighInfectedTurtles <- length(nbNeig);
+		list<turtle> neigh <- infectionCells accumulate (each.myTurtles); 
+		list<turtle> neigInfected <- neigh where(each.state = "infected");
+		int nbNeighInfectedTurtles <- length(neigInfected);
 		transition to: exposed when: (nbNeighInfectedTurtles > 0) and (rnd(1000) / 1000 < 1 - exp( - infectionRate * nbNeighInfectedTurtles)) {
 			isSusceptible <- false;
 			infectionTimer <- 0;
@@ -199,7 +203,7 @@ experiment Run type: gui {
 experiment batchRun autorun: true type: batch repeat: 30 until: time > 730 parallel: true {
 	
 	parameter "Proportion of initially infected individuals" var: propInfectedInit <- 0.1 ;
-
+	parameter "mode batch" var: isBatch <- true;
 	
 	/*  reflex end_of_runs {
     int cpt <- 0;
@@ -212,7 +216,6 @@ experiment batchRun autorun: true type: batch repeat: 30 until: time > 730 paral
         }
     }*/
 }
-
 
 
 
